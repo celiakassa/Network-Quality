@@ -18,7 +18,7 @@
  * ---------------------------------------------------------- */
 int create_socket(char[], BIO *);
 
-int main() {
+int main(int argc, char *argv[]) {
 
   char           dest_url[] = "https://monitor.uac.bj:4449/config";
   BIO              *certbio = NULL;
