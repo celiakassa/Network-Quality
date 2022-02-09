@@ -1,6 +1,5 @@
- #make file - this is a comment section
- 
+
 all:    
-	gcc -o sslconnect sslconnect.c -lssl -lcrypto   
+	gcc -Wall -Werror -DC99 -std=gnu99 -o sslconnect sslconnect.c -lssl -lcrypto   
 
 
