@@ -78,6 +78,7 @@ int main(int argc, char *argv[]) {
   server = create_socket(dest_url, outbio);
   if(server != 0)
     BIO_printf(outbio, "Successfully made the TCP connection to: %s.\n", dest_url);
+  // TODO cQue se passe t'il si tu n'as pas pu te conneté???
 
   /* ---------------------------------------------------------- *
    * Attach the SSL session to the socket descriptor            *
@@ -147,16 +148,19 @@ int create_socket(char url_str[], BIO *out) {
   /* ---------------------------------------------------------- *
    * the first : ends the protocol string, i.e. http            *
    * ---------------------------------------------------------- */
+   // TODO comprends tu ce qui se fait ici?
   strncpy(proto, url_str, (strchr(url_str, ':')-url_str));
 
   /* ---------------------------------------------------------- *
    * the hostname starts after the "://" part                   *
    * ---------------------------------------------------------- */
+   // TODO comprends tu ce qui se fait ici aussi???
   strncpy(hostname, strstr(url_str, "://")+3, sizeof(hostname));
 
   /* ---------------------------------------------------------- *
    * if the hostname contains a colon :, we got a port number   *
    * ---------------------------------------------------------- */
+   // TODO comprends tu ce qui se fait ici aussi???
   if(strchr(hostname, ':')) {
     tmp_ptr = strchr(hostname, ':');
     /* the last : starts the port number, if avail, i.e. 8443 */
@@ -165,7 +169,8 @@ int create_socket(char url_str[], BIO *out) {
   }
 
   port = atoi(portnum);
-
+  
+  // TODO comprends tu ce qui se fait ici aussi???
   if ( (host = gethostbyname(hostname)) == NULL ) {
     BIO_printf(out, "Error: Cannot resolve hostname %s.\n",  hostname);
     abort();
