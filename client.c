@@ -4,6 +4,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <unistd.h>
+#include <stdio.h>
 
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
@@ -32,7 +34,7 @@ int main(int argc, char *argv[]) {
   int bytes;
   int ret, i;
   char buf[1024];
-  char Request[1024] = {0};
+  char *Request = (char*) malloc(1024);
   /* ---------------------------------------------------------- *
    * These function calls initialize openssl for correct work.  *
    * ---------------------------------------------------------- */
@@ -117,16 +119,21 @@ int main(int argc, char *argv[]) {
   X509_NAME_print_ex(outbio, certname, 0, 0);
   BIO_printf(outbio, "\n");
 
-   const char *cpRequestMessage = "GET /small HTTP/1.0";
-   sprintf(Request, cpRequestMessage);
-   if(SSL_write(ssl, Request, strlen(Request)) >0)
-   	printf("\n\nEnvoie de requete reussie\n");
-   else
-   	printf("\n\nEnvoie de requete echoue\n");
-    if(SSL_read(ssl, buf, sizeof(buf)) >0)
+   const char *cpRequestMessage = "GET /large HTTP/1.1\nHost: monitor.uac.bj\n\n";
+   //sprintf(Request, cpRequestMessage);
+   if(SSL_write(ssl, cpRequestMessage, strlen(cpRequestMessage)) < 0){
+   	printf("\n\n Echec Envoie de requete\n");
+   	return -1;
+   }
+    
+   printf("\n\nEnvoie de requete reussie\n");
+   if((bytes = SSL_read(ssl, buf, 1024)) < 0){
+      printf("Rien n'a été reçu: \n");
+      return -1;
+   }
    //bytes = SSL_read(ssl, buf, sizeof(buf)); /* get reply & decrypt */
-    	printf("Received: \"%d\"\n", 10);
-   buf[bytes] = 0;
+   printf("Received something: %d\n", bytes);
+   buf[bytes] = '\0';
    printf("Received: \"%s\"\n", buf);
    
    
@@ -147,7 +154,7 @@ int main(int argc, char *argv[]) {
 int create_socket(char url_str[], BIO *out) {
   int sockfd;
   char hostname[256] = "";
-  char    portnum[6] = "4449";
+  char    portnum[6] = "443";
   char      proto[6] = "";
   char      *tmp_ptr = NULL;
   int           port;
@@ -181,7 +188,7 @@ int create_socket(char url_str[], BIO *out) {
   }
 
   port = atoi(portnum);
-
+  // TODO BIO est il vraiment nécessaire???
   if ( (host = gethostbyname(hostname)) == NULL ) {
     BIO_printf(out, "Error: Cannot resolve hostname %s.\n",  hostname);
     abort();
