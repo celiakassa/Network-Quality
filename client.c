@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
   X509_NAME_print_ex(outbio, certname, 0, 0);
   BIO_printf(outbio, "\n");
 
-   const char *cpRequestMessage = "GET /large HTTP/1.1\nHost: monitor.uac.bj\n\n";
+   const char *cpRequestMessage = "GET /config HTTP/1.1\nHost: monitor.uac.bj\n\n";
    //sprintf(Request, cpRequestMessage);
    if(SSL_write(ssl, cpRequestMessage, strlen(cpRequestMessage)) < 0){
    	printf("\n\n Echec Envoie de requete\n");
@@ -135,6 +135,26 @@ int main(int argc, char *argv[]) {
    printf("Received something: %d\n", bytes);
    buf[bytes] = '\0';
    printf("Received: \"%s\"\n", buf);
+   
+   
+   /// 2nde tentative
+   
+   cpRequestMessage = "GET /large HTTP/1.1\nHost: monitor.uac.bj\n\n";
+   //sprintf(Request, cpRequestMessage);
+   if(SSL_write(ssl, cpRequestMessage, strlen(cpRequestMessage)) < 0){
+   	printf("\n\n Echec Envoie de requete\n");
+   	return -1;
+   }
+    
+   printf("\n\nEnvoie de requete reussie\n");
+   if((bytes = SSL_read(ssl, buf, 1024)) < 0){
+      printf("Rien n'a été reçu: \n");
+      return -1;
+   }
+   //bytes = SSL_read(ssl, buf, sizeof(buf)); /* get reply & decrypt */
+   printf("Received something: %d\n", bytes);
+   buf[bytes] = '\0';
+   printf("2 Received: \"%s\"\n", buf);
    
    
   /* ---------------------------------------------------------- *
