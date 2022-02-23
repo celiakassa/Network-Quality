@@ -141,9 +141,7 @@ int main(int argc, char *argv[]) {
       ret = select(fdmax, &readfds, NULL, NULL, NULL);
       if(FD_ISSET(server, &readfds)){
          while(((bytes = SSL_read(ssl, buf, 1024)) < 0) && (errno == EAGAIN));
-         printf("%s %d", buf, bytes);
-         //exit = 1;
-         printf("%d %d\n", bytes, errno);
+         printf("%s ", buf);
          FD_CLR(server, &readfds);
       }
   }
