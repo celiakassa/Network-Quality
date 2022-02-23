@@ -2,7 +2,7 @@ CFLAGS=-Wall -O2 -Werror -Wall -Wextra -Wpedantic -Wformat=2 -Wformat-overflow=2
 
 all:    
 
-	gcc  -o client client.c -lssl -lcrypto  
+	gcc  -o worker worker.c -lssl -lcrypto  
    
 
 
