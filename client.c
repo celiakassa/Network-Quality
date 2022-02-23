@@ -14,10 +14,97 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
-/* ---------------------------------------------------------- *
- * First we need to make a standard TCP socket connection.    *
- * create_socket() creates a socket & TCP-connects to server. *
- * ---------------------------------------------------------- */
+
+SSL_CTX* InitCTX(void){ 
+  BIO              *certbio = NULL;
+  BIO               *outbio = NULL;
+  const SSL_METHOD *method;
+  SSL_CTX *ctx;
+  
+  /* These function calls initialize openssl for correct work.  */
+   
+  OpenSSL_add_all_algorithms();
+  ERR_load_BIO_strings();
+  ERR_load_crypto_strings();
+  SSL_load_error_strings();
+   
+   /* Create the Input/Output BIO's.                             */
+   
+  certbio = BIO_new(BIO_s_file());
+  outbio  = BIO_new_fp(stdout, BIO_NOCLOSE);
+
+  /* initialize SSL library and register algorithms             */   
+  if(SSL_library_init() < 0)
+    BIO_printf(outbio, "Could not initialize the OpenSSL library !\n");
+   
+   /* Set SSLv2 client hello, also announce SSLv3 and TLSv1      */  
+  method = SSLv23_client_method();
+  
+   /* Try to create a new SSL context                            */   
+  if ( (ctx = SSL_CTX_new(method)) == NULL)
+    BIO_printf(outbio, "Unable to create a new SSL context structure.\n");
+
+  /* Disabling SSLv2 will leave v3 and TSLv1 for negotiation    */   
+  SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
+  return ctx;
+}
+
+/*Show  Certificate Information*/
+void ShowCerts(SSL* ssl ,BIO* outbio)
+{  
+   X509 *cert;
+   X509_NAME       *certname ;
+  // char *line;
+   
+ /* Get the remote certificate into the X509 structure         */
+    cert = SSL_get_peer_certificate(ssl);  
+     if (cert == NULL)
+   	 BIO_printf(outbio, "Error: Could not get a certificate from server.\n");
+    else
+   	 BIO_printf(outbio, "Retrieved the server's certificate from server.\n");
+   	
+   /* extract various certificate information                    */
+    certname = X509_NAME_new();
+    certname = X509_get_subject_name(cert);
+
+	/* display the cert subject here                              */
+    BIO_printf(outbio, "Displaying the certificate subject data:\n");
+    X509_NAME_print_ex(outbio, certname, 0, 0);
+    BIO_printf(outbio, "\n");
+
+}
+ int connexion(SSL* ssl ){
+	  int bytes;
+	  int ret, i;
+	  char buf[1024];
+	  char *Request = (char*) malloc(1024);
+	  
+	   const char *Message = "GET /config HTTP/1.1\nHost: monitor.uac.bj\n\n";
+	   //sprintf(Request, cpRequestMessage);
+	   if(SSL_write(ssl, Message, strlen(Message)) < 0){
+	   	printf("\n\n Echec Envoie de requete\n");
+	   	return -1;
+	   }
+	    
+	   printf("\n\nEnvoie de requete reussie\n");
+	   if((bytes = SSL_read(ssl, buf, 1024)) < 0){
+	      printf("Rien n'a été reçu: \n");
+	      return -1;
+	   }
+	   //bytes = SSL_read(ssl, buf, sizeof(buf)); /* get reply & decrypt */
+	   printf("Received something: %d\n", bytes);
+	   buf[bytes] = '\0';
+	   printf("2 Received: \"%s\"\n", buf);
+	   
+	   return(0);
+ }
+ 
+ 
+
+ 
+ /* First we need to make a standard TCP socket connection.    *
+ * create_socket() creates a socket & TCP-connects to server. */
+
 int create_socket(char[], BIO *);
 
 int main(int argc, char *argv[]) {
@@ -27,7 +114,7 @@ int main(int argc, char *argv[]) {
   BIO               *outbio = NULL;
   X509                *cert = NULL;
   X509_NAME       *certname = NULL;
-  const SSL_METHOD *method;
+  
   SSL_CTX *ctx;
   SSL *ssl;
   int server = 0;
@@ -35,90 +122,23 @@ int main(int argc, char *argv[]) {
   int ret, i;
   char buf[1024];
   char *Request = (char*) malloc(1024);
-  /* ---------------------------------------------------------- *
-   * These function calls initialize openssl for correct work.  *
-   * ---------------------------------------------------------- */
-  OpenSSL_add_all_algorithms();
-  ERR_load_BIO_strings();
-  ERR_load_crypto_strings();
-  SSL_load_error_strings();
-    /* ---------------------------------------------------------- *
-   * Create the Input/Output BIO's.                             *
-   * ---------------------------------------------------------- */
-  certbio = BIO_new(BIO_s_file());
-  outbio  = BIO_new_fp(stdout, BIO_NOCLOSE);
-
-  /* ---------------------------------------------------------- *
-   * initialize SSL library and register algorithms             *
-   * ---------------------------------------------------------- */
-  if(SSL_library_init() < 0)
-    BIO_printf(outbio, "Could not initialize the OpenSSL library !\n");
-
-  /* ---------------------------------------------------------- *
-   * Set SSLv2 client hello, also announce SSLv3 and TLSv1      *
-   * ---------------------------------------------------------- */
-  method = SSLv23_client_method();
-
-  /* ---------------------------------------------------------- *
-   * Try to create a new SSL context                            *
-   * ---------------------------------------------------------- */
-  if ( (ctx = SSL_CTX_new(method)) == NULL)
-    BIO_printf(outbio, "Unable to create a new SSL context structure.\n");
-
-  /* ---------------------------------------------------------- *
-   * Disabling SSLv2 will leave v3 and TSLv1 for negotiation    *
-   * ---------------------------------------------------------- */
-  SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
-
-  /* ---------------------------------------------------------- *
-   * Create new SSL connection state object                     *
-   * ---------------------------------------------------------- */
-  ssl = SSL_new(ctx);
-
-  /* ---------------------------------------------------------- *
-   * Make the underlying TCP socket connection                  *
-   * ---------------------------------------------------------- */
-  server = create_socket(dest_url, outbio);
+   
+  ctx = InitCTX();  
+  ssl = SSL_new(ctx);/* Create new SSL connection state object */
+  server = create_socket(dest_url, outbio);/* Make the underlying TCP socket connection*/ 
   if(server != 0)
-    BIO_printf(outbio, "Successfully made the TCP connection to: %s.\n", dest_url);
-
-  /* ---------------------------------------------------------- *
-   * Attach the SSL session to the socket descriptor            *
-   * ---------------------------------------------------------- */
-  SSL_set_fd(ssl, server);
-
-  /* ---------------------------------------------------------- *
-   * Try to SSL-connect here, returns 1 for success             *
-   * ---------------------------------------------------------- */
-  if ( SSL_connect(ssl) != 1 )
+     BIO_printf(outbio, "Successfully made the TCP connection to: %s.\n", dest_url);
+  SSL_set_fd(ssl, server); /* Attach the SSL session to the socket descriptor*/
+  if ( SSL_connect(ssl) != 1 )/* Try to SSL-connect here, returns 1 for success   */
     BIO_printf(outbio, "Error: Could not build a SSL session to: %s.\n", dest_url);
   else{
     BIO_printf(outbio, "Successfully enabled SSL/TLS session to: %s.\n", dest_url);
     
     }
-
-  /* ---------------------------------------------------------- *
-   * Get the remote certificate into the X509 structure         *
-   * ---------------------------------------------------------- */
-  cert = SSL_get_peer_certificate(ssl);
-  if (cert == NULL)
-    BIO_printf(outbio, "Error: Could not get a certificate from: %s.\n", dest_url);
-  else
-    BIO_printf(outbio, "Retrieved the server's certificate from: %s.\n", dest_url);
-
-  /* ---------------------------------------------------------- *
-   * extract various certificate information                    *
-   * -----------------------------------------------------------*/
-  certname = X509_NAME_new();
-  certname = X509_get_subject_name(cert);
-
-  /* ---------------------------------------------------------- *
-   * display the cert subject here                              *
-   * -----------------------------------------------------------*/
-  BIO_printf(outbio, "Displaying the certificate subject data:\n");
-  X509_NAME_print_ex(outbio, certname, 0, 0);
-  BIO_printf(outbio, "\n");
-
+   
+  ShowCerts(ssl,outbio);
+   /* send request here                             */
+  
    const char *cpRequestMessage = "GET /config HTTP/1.1\nHost: monitor.uac.bj\n\n";
    //sprintf(Request, cpRequestMessage);
    if(SSL_write(ssl, cpRequestMessage, strlen(cpRequestMessage)) < 0){
@@ -139,7 +159,7 @@ int main(int argc, char *argv[]) {
    
    /// 2nde tentative
    
-   cpRequestMessage = "GET /large HTTP/1.1\nHost: monitor.uac.bj\n\n";
+  /* cpRequestMessage = "GET /large HTTP/1.1\nHost: monitor.uac.bj\n\n";
    //sprintf(Request, cpRequestMessage);
    if(SSL_write(ssl, cpRequestMessage, strlen(cpRequestMessage)) < 0){
    	printf("\n\n Echec Envoie de requete\n");
@@ -151,11 +171,15 @@ int main(int argc, char *argv[]) {
       printf("Rien n'a été reçu: \n");
       return -1;
    }
-   //bytes = SSL_read(ssl, buf, sizeof(buf)); /* get reply & decrypt */
+   //bytes = SSL_read(ssl, buf, sizeof(buf));  
    printf("Received something: %d\n", bytes);
    buf[bytes] = '\0';
-   printf("2 Received: \"%s\"\n", buf);
-   
+   printf("2 Received: \"%s\"\n", buf);*/
+   int a;
+   for( a = 0; a < 3; a = a + 1 ){
+      printf("Tentative numero: %d\n", a);
+      connexion(ssl);
+   } 
    
   /* ---------------------------------------------------------- *
    * Free the structures we don't need anymore                  *
