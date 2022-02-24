@@ -11,5 +11,6 @@ struct task_node{
 typedef struct task_node * Tasks;
 
 Tasks init_tasks_list(void);
-Tasks addTask(pid_t *pid, int *shmid, long **recv_bytes, Tasks headT);
+//Tasks addTask(pid_t *pid, int *shmid, long **recv_bytes, Tasks headT);
+Tasks addTask(Tasks headT);
 void get_recv_bytes(Tasks t);

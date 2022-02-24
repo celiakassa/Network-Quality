@@ -23,13 +23,14 @@ int main(int argc, char *argv[]){
     printf("Usage %s <url> <resources>\n", argv[0]);
     return ARG_ERR;
   }
-  pid_t pid[WORKERS], pid2[WORKERS];
-  long *recv_bytes[WORKERS], *recv_bytes2[WORKERS];
-  int i;
-  int shmid[WORKERS+1], shmid2[WORKERS+1];
+  //pid_t pid[WORKERS], pid2[WORKERS];
+  //long *recv_bytes[WORKERS], *recv_bytes2[WORKERS];
+  //int i;
+  //int shmid[WORKERS+1], shmid2[WORKERS+1];
   Tasks t;
   t = init_tasks_list();
-  t = addTask(pid, shmid, recv_bytes, t);
+  //t = addTask(pid, shmid, recv_bytes, t);
+  t = addTask(t);
   if (signal(SIGALRM, handle_alarm) == SIG_ERR){
      printf("Failed to onfigure signal %d \n", SIGALRM);
      return SIGNAL_ERR;
@@ -37,7 +38,11 @@ int main(int argc, char *argv[]){
   
   
   start_workers(t->pid, t->shmid, t->recv_bytes, argv);
-  t = addTask(pid2, shmid2, recv_bytes2, t);
+  //t = addTask(pid2, shmid2, recv_bytes2, t);
+  t = addTask(t);
+  start_workers(t->pid, t->shmid, t->recv_bytes, argv);
+  
+  t = addTask(t);
   start_workers(t->pid, t->shmid, t->recv_bytes, argv);
   alarm(1);
   
@@ -53,10 +58,10 @@ int main(int argc, char *argv[]){
      pause();
   }
   
-  for(i = 0; i < 4; i++){
+ /* for(i = 0; i < 4; i++){
      int status;
      pid[i] = wait(&status);
-  }
+  }*/
   
   return 0;
 }

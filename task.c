@@ -11,19 +11,20 @@ Tasks init_tasks_list(void){
    return headT;
 }
 
-Tasks addTask(pid_t *pid, int *shmid, long **recv_bytes, Tasks headT){
+//Tasks addTask(pid_t *pid, int *shmid, long **recv_bytes, Tasks headT){
+Tasks addTask(Tasks headT){
    if(headT->flag == -1){
       headT->flag = 0;
-      headT->pid = pid;
-      headT->shmid = shmid;
-      headT->recv_bytes = recv_bytes;
+      headT->pid = (pid_t*) malloc(WORKERS*sizeof(pid_t));
+      headT->shmid = (int*) malloc((WORKERS+1)*sizeof(int));
+      headT->recv_bytes = (long**)malloc(WORKERS*sizeof(long));
       return headT;
    }
    Tasks n = (Tasks) malloc(sizeof(struct task_node));
    n->flag = 0;
-   n->pid = pid;
-   n->shmid = shmid;
-   n->recv_bytes = recv_bytes;
+   n->pid = (pid_t*) malloc(WORKERS*sizeof(pid_t));
+   n->shmid = (int*) malloc((WORKERS+1)*sizeof(int));
+   n->recv_bytes = (long**)malloc(WORKERS*sizeof(long));
    n->next = headT;
    headT = n;
    return headT;
