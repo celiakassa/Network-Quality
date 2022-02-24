@@ -8,29 +8,35 @@
 #include <errno.h>
 
 #include "shm.h"
+#include "worker.h"
+
+int handle_sign = 0;
 
 void handle_alarm(int number){
-  fprintf(stderr, "\n%ld a recu le signal %d (%s)\n", 
-    (long) getpid(), number, strsignal(number));
-  alarm(1);	        
+  if(number == SIGALRM)
+     handle_sign = 1;	        
 }
 
 int main(int argc, char *argv[]){
   if(argc!=3){
     printf("Usage %s <url> <resources>\n", argv[0]);
-    return 1;
+    return ARG_ERR;
   }
-  /*char *dest_url = argv[1];
-  char *request = argv[2];*/
-  pid_t pid[4];
+  pid_t pid[WORKERS];
   int *syncdata;
-  if (signal(SIGALRM, handle_alarm) == SIG_ERR)
-     printf("Signal %d non capture\n", SIGALRM);
+  int *recv_bytes[WORKERS];
+  int ret, i;
+  int shmid[WORKERS+1];
   
-  for(int i = 0; i < 4; i++){
-     char *id = (char*)malloc(2);
+  if (signal(SIGALRM, handle_alarm) == SIG_ERR){
+     printf("Failed to onfigure signal %d \n", SIGALRM);
+     return SIGNAL_ERR;
+  }
+  
+  for(i = 0; i < WORKERS; i++){
+     char *id = (char*)malloc(ID_SIZE);
      sprintf(id, "%d", i);
-     char *const newargv[] = {"./worker", argv[1], argv[2], id, NULL};
+     char *const worker_argv[] = {WORKER_TASK, argv[1], argv[2], id, NULL};
      pid[i] = fork();
      if(pid[i] < 0){
         fprintf(stderr, "Erreur de création du processus (%d)\n", errno);
@@ -38,32 +44,43 @@ int main(int argc, char *argv[]){
     }
     if(pid[i] == 0){
       //int ret;
-      execve("./worker", newargv, NULL);
+      execve(WORKER_TASK, worker_argv, NULL);
       perror("execve");
     }
   }
   
-  int shmid = init(getpid(), 256);
-  int ret = mem_attach(shmid, (void**)&syncdata);
-  if(ret != -1)
-     *syncdata = 0;
-  else
-     printf("errno:: %d\n", errno);
-  printf("%p\n",(void*) syncdata);
+  shmid[0] = init(getpid(), PROJ_ID);
+  ret = mem_attach(shmid[0], (void**)&syncdata);
+  if(ret == -1){
+     printf("Failed to configure shared memory %d\n", errno);
+     return SHM_ERR;  
+  }
+  *syncdata = 0;
   while(*syncdata!=15);
   
-  for(int i = 0; i < 4; i++){
-    shmid = init(pid[i], 256);
-    printf("shmid %d \n", shmid);
+  for(i = 0; i < WORKERS; i++){
+    shmid[i+1] = init(pid[i], 256);
+    ret = mem_attach(shmid[i+1], (void**)&recv_bytes[i]);
+    if(ret == -1){
+       printf("Failed to configure shared memory %d\n", errno);
+       return SHM_ERR;  
+    }
   }
   
   alarm(1);
   
   while(1){
+     if(handle_sign){
+        for(i = 0; i < WORKERS; i++)
+        printf("%d ", *recv_bytes[i]);
+        handle_sign = 0;
+     }
+     printf("\n");
+     alarm(1);
      pause();
   }
   
-  for(int i = 0; i < 4; i++){
+  for(i = 0; i < 4; i++){
      int status;
      pid[i] = wait(&status);
   }

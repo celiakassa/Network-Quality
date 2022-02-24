@@ -17,6 +17,7 @@
 #include <openssl/x509_vfy.h>
 
 #include "shm.h"
+#include "worker.h"
 
 SSL_CTX* InitCTX(void){ 
   BIO              *certbio = NULL;
@@ -95,20 +96,22 @@ int main(int argc, char *argv[]) {
   int server = 0;
   int bytes;
   int ret, i;
-  char buf[1024];
+  char buf[BUFFER_SIZE];
   char *Request = (char*) malloc(1024);
   int *syncdata;
   
   // for async reading
   int fdmax = 0;
   fd_set readfds;
+  int exit = 0;
+  int shmid[2];
+  int *recv_bytes;
   
   if(argc!=4){
      printf("Usage %s <url> <resources>\n", argv[0]);
      return -1;
   }
   
-  printf("start");
   
   char *dest_url = argv[1]; //"https://monitor.uac.bj:4449";
   char *request = argv[2];
@@ -131,16 +134,23 @@ int main(int argc, char *argv[]) {
   fcntl(server, F_SETFL, O_NONBLOCK );
   FD_ZERO(&readfds);
   fdmax = server+1;
-  int exit = 0;
-  
-  int shmid = init(getppid(),256);
-  mem_attach(shmid,(void**)&syncdata);
+ 
+  shmid[0] = init(getppid(),PROJ_ID);
+  ret = mem_attach(shmid[0],(void**)&syncdata);
+  if(ret == -1){
+    printf("Failed to configure shared memory %d\n", errno);
+    return SHM_ERR;
+  }
   *syncdata = *syncdata | 1 << id;
-  printf("data: %d id: %d\n", *syncdata, id);
-  while(*syncdata!=15);
   
-  shmid = init(getpid(), 256);
+  while(*syncdata!=RDV);
   
+  shmid[1] = init(getpid(), PROJ_ID);
+  ret = mem_attach(shmid[1],(void**)&recv_bytes);
+  if(ret == -1){
+    printf("Failed to configure shared memory %d\n", errno);
+    return SHM_ERR;
+  }
   const char *cpRequestMessage = "GET /%s HTTP/1.1\nHost: monitor.uac.bj\n\n";
   char *requestMsg = (char*) malloc(60);
   sprintf(requestMsg, cpRequestMessage, request);
@@ -149,15 +159,13 @@ int main(int argc, char *argv[]) {
    	return -1;
   }
   
-  printf("\n\nEnvoie de requete reussie %d\n", shmid);
   while(!exit){
       FD_SET(server, &readfds);
       ret = select(fdmax, &readfds, NULL, NULL, NULL);
       if(FD_ISSET(server, &readfds)){
-         while(((bytes = SSL_read(ssl, buf, 1024)) < 0) && (errno == EAGAIN));
-         printf("%s ", buf);
+         while(((bytes = SSL_read(ssl, buf, BUFFER_SIZE)) < 0) && (errno == EAGAIN));
+         *recv_bytes += bytes;
          FD_CLR(server, &readfds);
-         exit = 1;
       }
   }
    

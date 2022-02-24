@@ -24,7 +24,6 @@ int init(pid_t pid, int proj_id ){
     return shm_key;
   }
   /* Création de la mémoire partagée */
-  fprintf(stderr, "key %d\n", shm_key);
   shmid = shmget(shm_key, MEMSIZE, IPC_EXCL | IPC_CREAT | 0666); 
   if (shmid<0){ 
     if(errno!=EEXIST){
@@ -41,7 +40,6 @@ int init(pid_t pid, int proj_id ){
 
 int mem_attach(int shmid,void **addr){
   *addr=(int *)shmat(shmid, NULL,0);
-  printf("#### %p %d %d\n", *addr, errno, shmid);
   if (*addr==(void *) -1) return -1;
   return 0;
 }
