@@ -16,6 +16,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
+#include "shm.h"
+
 SSL_CTX* InitCTX(void){ 
   BIO              *certbio = NULL;
   BIO               *outbio = NULL;
@@ -95,18 +97,22 @@ int main(int argc, char *argv[]) {
   int ret, i;
   char buf[1024];
   char *Request = (char*) malloc(1024);
+  int *syncdata;
   
   // for async reading
   int fdmax = 0;
   fd_set readfds;
   
-  if(argc!=3){
+  if(argc!=4){
      printf("Usage %s <url> <resources>\n", argv[0]);
      return -1;
   }
   
+  printf("start");
+  
   char *dest_url = argv[1]; //"https://monitor.uac.bj:4449";
   char *request = argv[2];
+  int id = atoi(argv[3]);
   ctx = InitCTX();  
   ssl = SSL_new(ctx);/* Create new SSL connection state object */
   server = create_socket(dest_url, outbio);/* Make the underlying TCP socket connection*/ 
@@ -122,11 +128,19 @@ int main(int argc, char *argv[]) {
   
   ShowCerts(ssl,outbio);
   // make socket NON Blocking 
-  
   fcntl(server, F_SETFL, O_NONBLOCK );
   FD_ZERO(&readfds);
   fdmax = server+1;
   int exit = 0;
+  
+  int shmid = init(getppid(),256);
+  mem_attach(shmid,(void**)&syncdata);
+  *syncdata = *syncdata | 1 << id;
+  printf("data: %d id: %d\n", *syncdata, id);
+  while(*syncdata!=15);
+  
+  shmid = init(getpid(), 256);
+  
   const char *cpRequestMessage = "GET /%s HTTP/1.1\nHost: monitor.uac.bj\n\n";
   char *requestMsg = (char*) malloc(60);
   sprintf(requestMsg, cpRequestMessage, request);
@@ -134,8 +148,8 @@ int main(int argc, char *argv[]) {
    	printf("\n\n Echec Envoie de requete\n");
    	return -1;
   }
-    
-  printf("\n\nEnvoie de requete reussie\n");
+  
+  printf("\n\nEnvoie de requete reussie %d\n", shmid);
   while(!exit){
       FD_SET(server, &readfds);
       ret = select(fdmax, &readfds, NULL, NULL, NULL);
@@ -143,6 +157,7 @@ int main(int argc, char *argv[]) {
          while(((bytes = SSL_read(ssl, buf, 1024)) < 0) && (errno == EAGAIN));
          printf("%s ", buf);
          FD_CLR(server, &readfds);
+         exit = 1;
       }
   }
    
