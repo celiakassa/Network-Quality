@@ -24,7 +24,7 @@ int main(int argc, char *argv[]){
   }
   pid_t pid[WORKERS];
   int *syncdata;
-  int *recv_bytes[WORKERS];
+  long *recv_bytes[WORKERS];
   int ret, i;
   int shmid[WORKERS+1];
   
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]){
   while(1){
      if(handle_sign){
         for(i = 0; i < WORKERS; i++)
-        printf("%d ", *recv_bytes[i]);
+        printf("%ld ", *recv_bytes[i]);
         handle_sign = 0;
      }
      printf("\n");

@@ -39,7 +39,7 @@ int init(pid_t pid, int proj_id ){
 
 
 int mem_attach(int shmid,void **addr){
-  *addr=(int *)shmat(shmid, NULL,0);
+  *addr=(long *)shmat(shmid, NULL,0);
   if (*addr==(void *) -1) return -1;
   return 0;
 }

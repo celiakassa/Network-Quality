@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
   fd_set readfds;
   int exit = 0;
   int shmid[2];
-  int *recv_bytes;
+  long *recv_bytes;
   
   if(argc!=4){
      printf("Usage %s <url> <resources>\n", argv[0]);
