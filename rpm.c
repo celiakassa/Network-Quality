@@ -25,6 +25,16 @@ Instan_aggregate addAggregate(long goodput, Instan_aggregate headI){
 }
 
 
+Instan_aggregate delAggregate(Instan_aggregate headI){
+  if(headI == NULL)
+      return headI;
+   Instan_aggregate n;
+   Instan_aggregate next = headI->next;
+   n = headI;
+   headI = next;
+   free(n);
+   return headI;
+}
 
 long get_prev_goodput(Instan_aggregate ia){
     int i;

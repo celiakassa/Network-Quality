@@ -25,8 +25,7 @@ void handle_signal(int number){
      time++;
      duration++;
   }
-  if(number == SIGINT){
-     printf("Get CTRL-C\n");
+  if((number == SIGINT)){
      handle_int = 1;
   }        
 }
@@ -90,6 +89,14 @@ int main(int argc, char *argv[]){
                  saturation = 1;
                  mva_change = 0;
               }else{
+              
+                    if(saturation && mva_change){
+                       t = addTask(t);
+                       start_workers(t->pid, t->shmid, t->recv_bytes, argv);
+                       time = 0; 
+                       workers+=4;
+                       mva_change = 0;                   
+                    }
                     if(time >= 4 /*&& !mva_change*/){
                        printf("\n\n\nStable Saturation du reseau cur(%ld)  prev(%ld) duration(%d) workers(%d) time(%d)\n\n\n", cur_mva, prev_mva, duration,workers, time);
                        stable_saturation = 1;
@@ -105,10 +112,6 @@ int main(int argc, char *argv[]){
      pause();
   }
   
- /* for(i = 0; i < 4; i++){
-     int status;
-     pid[i] = wait(&status);
-  }*/
 clean:
 
   while(t!=NULL)

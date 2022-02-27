@@ -43,8 +43,9 @@ Tasks addTask(Tasks headT){
 
 Tasks delTask(Tasks headT){
   int i;
-  if(headT == NULL)
+  if(headT == NULL){
       return headT;
+   }
    Tasks n;
    Tasks next = headT->next;
    n = headT;
@@ -60,6 +61,8 @@ Tasks delTask(Tasks headT){
    free(n->recv_bytes);
    free(n->prev_goodput);
    free(n);
+   while(instan_agg!=NULL)
+     instan_agg = delAggregate(instan_agg);
    return headT;
 }
 

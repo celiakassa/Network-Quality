@@ -22,7 +22,8 @@ worker: worker.c
 	gcc  -o worker shm.o worker.c -lssl -lcrypto
 	
 test: netquality
-	valgrind --leak-check=full --track-origins=yes  --show-leak-kinds=all -s ./networkqualityC https://monitor.uac.bj:4449 large
+	#valgrind --leak-check=full --track-origins=yes  --show-leak-kinds=all -s ./networkqualityC https://monitor.uac.bj:4449 large
+	./networkqualityC https://monitor.uac.bj:4449 large
 	
 clean:
 	rm *.o

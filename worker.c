@@ -27,10 +27,8 @@ int handle_int = 0;
 void handle_signal(int number);
 
 void handle_signal(int number){
-  if(number == SIGINT){
-     printf("Get CTRL-C\n");
+  if(number == SIGINT)
      handle_int = 1;
-  }        
 }
 
 SSL_CTX* InitCTX(void){ 
