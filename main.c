@@ -11,50 +11,97 @@
 #include "worker.h"
 #include "task.h"
 
-int handle_sign = 0;
+int handle_alrm = 0;
+int handle_int = 0;
+int time = 0;
+int saturation = 0;
+int mva_change = 0;
+int duration = 0;
+int stable_saturation = 0;
 
-void handle_alarm(int number){
-  if(number == SIGALRM)
-     handle_sign = 1;	        
+void handle_signal(int number){
+  if(number == SIGALRM){
+     handle_alrm = 1;	
+     time++;
+     duration++;
+  }
+  if(number == SIGINT){
+     printf("Get CTRL-C\n");
+     handle_int = 1;
+  }        
 }
+
 int start_workers(pid_t *pid, int *shmid, long **recv_bytes, char *argv[]);
 int main(int argc, char *argv[]){
   if(argc!=3){
     printf("Usage %s <url> <resources>\n", argv[0]);
     return ARG_ERR;
   }
-  //pid_t pid[WORKERS], pid2[WORKERS];
-  //long *recv_bytes[WORKERS], *recv_bytes2[WORKERS];
-  //int i;
-  //int shmid[WORKERS+1], shmid2[WORKERS+1];
+  long prev_mva = -1, cur_mva;
+  int workers = 0;
   Tasks t;
   t = init_tasks_list();
-  //t = addTask(pid, shmid, recv_bytes, t);
   t = addTask(t);
-  if (signal(SIGALRM, handle_alarm) == SIG_ERR){
+  if (signal(SIGALRM, handle_signal) == SIG_ERR){
      printf("Failed to onfigure signal %d \n", SIGALRM);
      return SIGNAL_ERR;
   }
   
+  if (signal(SIGINT, handle_signal) == SIG_ERR){
+     printf("Failed to onfigure signal %d \n", SIGINT);
+     return SIGNAL_ERR;
+  }
   
   start_workers(t->pid, t->shmid, t->recv_bytes, argv);
-  //t = addTask(pid2, shmid2, recv_bytes2, t);
-  t = addTask(t);
-  start_workers(t->pid, t->shmid, t->recv_bytes, argv);
-  
-  t = addTask(t);
-  start_workers(t->pid, t->shmid, t->recv_bytes, argv);
+  workers+=4;
   alarm(1);
   
   while(1){
-     if(handle_sign){
-        /*for(i = 0; i < WORKERS; i++)
-        printf("%ld ", *recv_bytes[i]);*/
+     if(handle_alrm){
         get_recv_bytes(t);
-        handle_sign = 0;
+        cur_mva = compute_moving_avg();
+        if(cur_mva > 1.05 * prev_mva){
+           if(saturation && !mva_change){
+              mva_change = 1;
+              t = addTask(t);
+              start_workers(t->pid, t->shmid, t->recv_bytes, argv);
+              time = 0; 
+              workers+=4;
+              //saturation = 0;
+           }
+           if(saturation && mva_change){
+              t = addTask(t);
+              start_workers(t->pid, t->shmid, t->recv_bytes, argv);
+              time = 0; 
+              workers+=4;
+           }
+           if((time >= 4) /*&& !saturation*/){
+              t = addTask(t);
+              start_workers(t->pid, t->shmid, t->recv_bytes, argv);
+              time = 0; 
+              workers+=4;
+           }
+        }else{
+              if(!saturation && !mva_change){
+                 t = addTask(t);
+                 start_workers(t->pid, t->shmid, t->recv_bytes, argv);
+                 time = 0; 
+                 workers+=4;
+                 saturation = 1;
+                 mva_change = 0;
+              }else{
+                    if(time >= 4 /*&& !mva_change*/){
+                       printf("\n\n\nStable Saturation du reseau cur(%ld)  prev(%ld) duration(%d) workers(%d) time(%d)\n\n\n", cur_mva, prev_mva, duration,workers, time);
+                       stable_saturation = 1;
+                    }
+              }
+         }
+        prev_mva = cur_mva;
+        handle_alrm = 0;
+        alarm(1);
      }
-     printf("\n");
-     alarm(1);
+     if(handle_int)
+        goto clean;
      pause();
   }
   
@@ -62,7 +109,10 @@ int main(int argc, char *argv[]){
      int status;
      pid[i] = wait(&status);
   }*/
-  
+clean:
+
+  while(t!=NULL)
+     t = delTask(t);
   return 0;
 }
 
@@ -90,10 +140,10 @@ int start_workers(pid_t *pid, int *shmid, long **recv_bytes, char *argv[]){
      return SHM_ERR;  
   }
   *syncdata = 0;
-  while(*syncdata!=15);
+  while(*syncdata!=RDV);
   
   for(i = 0; i < WORKERS; i++){
-    shmid[i+1] = init(pid[i], 256);
+    shmid[i+1] = init(pid[i], PROJ_ID);
     ret = mem_attach(shmid[i+1], (void**)(recv_bytes + i));
     if(ret == -1){
        printf("Failed to configure shared memory %d\n", errno);

@@ -44,6 +44,10 @@ int mem_attach(int shmid,void **addr){
   return 0;
 }
 
-void mem_detach(void **adresse){
-  shmdt(*adresse);
+int mem_detach(void **adresse){
+  return shmdt(*adresse);
+}
+
+int mem_rm(int shmid){
+  return shmctl(shmid, IPC_RMID, NULL);
 }

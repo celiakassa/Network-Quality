@@ -16,22 +16,9 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
-#include <sys/types.h>
-#include <signal.h>
-
 #include "shm.h"
 #include "worker.h"
 #include "task.h"
-
-int handle_int = 0;
-void handle_signal(int number);
-
-void handle_signal(int number){
-  if(number == SIGINT){
-     printf("Get CTRL-C\n");
-     handle_int = 1;
-  }        
-}
 
 SSL_CTX* InitCTX(void){ 
   BIO              *certbio = NULL;
@@ -97,125 +84,6 @@ void ShowCerts(SSL* ssl ,BIO* outbio)
  * create_socket() creates a socket & TCP-connects to server. *
  * ---------------------------------------------------------- */
 int create_socket(char[], BIO *);
-
-int main(int argc, char *argv[]) {
-
-  BIO              *certbio = NULL;
-  BIO               *outbio = NULL;
-  X509                *cert = NULL;
-  X509_NAME       *certname = NULL;
-  const SSL_METHOD *method;
-  SSL_CTX *ctx;
-  SSL *ssl;
-  int server = 0;
-  int bytes;
-  int ret, i;
-  char buf[BUFFER_SIZE];
-  char *Request = (char*) malloc(1024);
-  int *syncdata;
-  
-  // for async reading
-  int fdmax = 0;
-  fd_set readfds;
-  int exit = 0;
-  int shmid[2];
-  long *recv_bytes;
-  
-  if(argc!=4){
-     printf("Usage %s <url> <resources>\n", argv[0]);
-     return -1;
-  }
-  
-  
-  char *dest_url = argv[1]; //"https://monitor.uac.bj:4449";
-  char *request = argv[2];
-  int id = atoi(argv[3]);
-  
-  //create shared memory
-  
-  shmid[0] = init(getppid(),PROJ_ID);
-  ret = mem_attach(shmid[0],(void**)&syncdata);
-  if(ret == -1){
-    printf("Failed to configure shared memory %d\n", errno);
-    return SHM_ERR;
-  }
-  *syncdata = *syncdata | 1 << id;
-  
-  while(*syncdata!=RDV);
-  
-  shmid[1] = init(getpid(), PROJ_ID);
-  ret = mem_attach(shmid[1],(void**)&recv_bytes);
-  if(ret == -1){
-    printf("Failed to configure shared memory %d\n", errno);
-    return SHM_ERR;
-  }
-  
-  //configure signal
-  if (signal(SIGINT, handle_signal) == SIG_ERR){
-     printf("Failed to onfigure signal %d \n", SIGINT);
-     return SIGNAL_ERR;
-  }
-  //initiate TLS handshake
-  ctx = InitCTX();  
-  ssl = SSL_new(ctx);/* Create new SSL connection state object */
-  server = create_socket(dest_url, outbio);/* Make the underlying TCP socket connection*/ 
-  if(server != 0)
-     BIO_printf(outbio, "Successfully made the TCP connection to: %s.\n", dest_url);
-  SSL_set_fd(ssl, server); /* Attach the SSL session to the socket descriptor*/
-  if ( SSL_connect(ssl) != 1 )/* Try to SSL-connect here, returns 1 for success   */
-    BIO_printf(outbio, "Error: Could not build a SSL session to: %s.\n", dest_url);
-  else{
-    BIO_printf(outbio, "Successfully enabled SSL/TLS session to: %s.\n", dest_url);
-    
-    }
-  
-  ShowCerts(ssl,outbio);
-  // make socket NON Blocking 
-  fcntl(server, F_SETFL, O_NONBLOCK );
-  FD_ZERO(&readfds);
-  fdmax = server+1;
- 
-  
-  const char *cpRequestMessage = "GET /%s HTTP/1.1\nHost: monitor.uac.bj\n\n";
-  char *requestMsg = (char*) malloc(60);
-  sprintf(requestMsg, cpRequestMessage, request);
-  if(SSL_write(ssl, requestMsg, strlen(requestMsg)) < 0){
-   	printf("\n\n Echec Envoie de requete\n");
-   	return -1;
-  }
-  
-  while(!exit){
-      if(handle_int)
-         goto clean;
-      FD_SET(server, &readfds);
-      ret = select(fdmax, &readfds, NULL, NULL, NULL);
-      if(FD_ISSET(server, &readfds)){
-         while(((bytes = SSL_read(ssl, buf, BUFFER_SIZE)) < 0) && (errno == EAGAIN));
-         *recv_bytes += bytes;
-         FD_CLR(server, &readfds);
-      }
-  }
- 
-clean:  
-  if(mem_detach((void**)&syncdata)==-1)
-     fprintf(stderr, "Failed to detach sync memory\n");
-  if(mem_detach((void**)&recv_bytes))
-     fprintf(stderr, "Failed to detach recv_bytes memory\n");
-  if (mem_rm(shmid[0]) == -1)
-     fprintf(stderr, "Failed remove shared memory\n");
-  if (mem_rm(shmid[1]) == -1)
-     fprintf(stderr, "Failed remove shared memory\n");
-   
-  /* ---------------------------------------------------------- *
-   * Free the structures we don't need anymore                  *
-   * -----------------------------------------------------------*/
-  SSL_free(ssl);
-  close(server);
-  X509_free(cert);
-  SSL_CTX_free(ctx);
-  BIO_printf(outbio, "Finished SSL/TLS connection with server: %s.\n", dest_url);
-  return(0);
-}
 
 /* ---------------------------------------------------------- *
  * create_socket() creates the socket & TCP-connect to server *
@@ -312,18 +180,17 @@ void *threadworker(void *arg) {
   int fdmax = 0;
   fd_set readfds;
   int exit = 0;
-  int shmid[2];
+  //int shmid[2];
   long *recv_bytes;
   
-  if(((struct thread_arg*)arg)->argc!=4){
+  if(((struct thread_arg*)arg)->argc!=3){
      printf("Usage %s <url> <resources>\n", ((struct thread_arg*)arg)->argv[0]);
      pthread_exit(tret);
   }
-  
-  
   char *dest_url = ((struct thread_arg*)arg)->argv[1]; //"https://monitor.uac.bj:4449";
   char *request = ((struct thread_arg*)arg)->argv[2];
-  int id = atoi(((struct thread_arg*)arg)->argv[3]);
+  int id = ((struct thread_arg*)arg)->id;
+  printf("start %d\n", id);
   ctx = InitCTX();  
   ssl = SSL_new(ctx);/* Create new SSL connection state object */
   server = create_socket(dest_url, outbio);/* Make the underlying TCP socket connection*/ 
@@ -343,22 +210,20 @@ void *threadworker(void *arg) {
   FD_ZERO(&readfds);
   fdmax = server+1;
  
-  shmid[0] = init(getppid(),PROJ_ID);
-  ret = mem_attach(shmid[0],(void**)&syncdata);
-  if(ret == -1){
-    printf("Failed to configure shared memory %d\n", errno);
-    pthread_exit(tret); // SHM_ERR;
-  }
-  *syncdata = *syncdata | 1 << id;
+  pthread_mutex_lock(((struct thread_arg*)arg)->sync_lock);
+  *((struct thread_arg*)arg)->syncdata = *((struct thread_arg*)arg)->syncdata | 1 << id;
+  pthread_mutex_unlock(((struct thread_arg*)arg)->sync_lock);
   
-  while(*syncdata!=RDV);
+  while(*((struct thread_arg*)arg)->syncdata!=RDV);
   
-  shmid[1] = init(getpid(), PROJ_ID);
+  
+  /*shmid[1] = init(getpid(), PROJ_ID);
   ret = mem_attach(shmid[1],(void**)&recv_bytes);
   if(ret == -1){
     printf("Failed to configure shared memory %d\n", errno);
     pthread_exit(tret); // SHM_ERR;
-  }
+  }*/
+  
   const char *cpRequestMessage = "GET /%s HTTP/1.1\nHost: monitor.uac.bj\n\n";
   char *requestMsg = (char*) malloc(60);
   sprintf(requestMsg, cpRequestMessage, request);
@@ -372,7 +237,8 @@ void *threadworker(void *arg) {
       ret = select(fdmax, &readfds, NULL, NULL, NULL);
       if(FD_ISSET(server, &readfds)){
          while(((bytes = SSL_read(ssl, buf, BUFFER_SIZE)) < 0) && (errno == EAGAIN));
-         *recv_bytes += bytes;
+         *((struct thread_arg*)arg)->recv_bytes += bytes;
+         printf("%ld ", *((struct thread_arg*)arg)->recv_bytes);
          FD_CLR(server, &readfds);
       }
   }
