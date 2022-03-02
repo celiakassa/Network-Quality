@@ -99,7 +99,7 @@ int main(int argc, char *argv[]){
                        mva_change = 0;                   
                     }
                     if(time >= 4 /*&& !mva_change*/){
-                       printf("\n\n\nStable Saturation du reseau cur(%ld)  prev(%ld) duration(%d) workers(%d) time(%d)\n\n\n", cur_mva, prev_mva, duration,workers, time);
+                       //printf("\n\n\nStable Saturation du reseau cur(%ld)  prev(%ld) duration(%d) workers(%d) time(%d)\n\n\n", cur_mva, prev_mva, duration,workers, time);
                        stable_saturation = 1;
                        break;
                     }
@@ -117,36 +117,33 @@ int main(int argc, char *argv[]){
   
   int i;
   char mes[1];
-  double dnsmoy =0;
-  double tcpmoy =0;
-  double rpm;
+  long dnsmoy = 0L;
+  long tcpmoy = 0L;
+  long rpm;
   struct mesure tab[10];
-  for (i = 0; i < 5; i++)
-  {
-    (tab[i].test_type)=atoi("dns");
-    tab[i].duration=dns("www.uclouvain.be");
+  
+  for (i = 0; i < 5; i++){
+    tab[i].type = DNS;
+    tab[i].duration = dns("www.uclouvain.be");
   }
   
-  for (i = 0; i < 5; i++)
-  {
-    (tab[i].test_type)=atoi("tcp");
+  for (i = i; i < 10; i++){
+    tab[i].type = TCP;
     tab[i].duration=tcp("www.uclouvain.be");
   }
   
-  for (i = 0; i < 10; i++)
-  {
-    
-    if( &(tab[i].test_type) == "dns")
+  for (i = 0; i < 10; i++){
+    if( tab[i].type == DNS )
     	dnsmoy+=tab[i].duration;
-    	
-    if( &(tab[i].test_type) == "tcp")
+    if( tab[i].type == TCP)
     	tcpmoy+=tab[i].duration;  
   }
   
-  dnsmoy=dnsmoy/5;
-  tcpmoy=tcpmoy/5;
-  rpm =(dnsmoy+tcpmoy)/(double)60000;
-  printf("RPM== %lf;", rpm);
+  dnsmoy=dnsmoy/5L;
+  tcpmoy=tcpmoy/5L;
+  long total_s =  (dnsmoy+tcpmoy)/1000000000L;
+  rpm = 60L/total_s;
+  printf("RPM: %ld", rpm);
   
 clean:
 

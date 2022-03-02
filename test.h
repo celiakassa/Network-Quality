@@ -1,9 +1,13 @@
+enum test_type{
+   DNS,
+   TCP
+};
+
 struct mesure{
-  double  duration;
-  char test_type;
- 
+  long  duration;
+  enum test_type type;
 };
 
 typedef struct mesure mesure;
-int tcp(char url_str[]);
-int dns(char url_str[]);
+long dns(char url_str[]);
+long tcp(char url_str[]);
