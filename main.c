@@ -10,6 +10,7 @@
 #include "shm.h"
 #include "worker.h"
 #include "task.h"
+#include "test.h"
 
 int handle_alrm = 0;
 int handle_int = 0;
@@ -100,6 +101,7 @@ int main(int argc, char *argv[]){
                     if(time >= 4 /*&& !mva_change*/){
                        printf("\n\n\nStable Saturation du reseau cur(%ld)  prev(%ld) duration(%d) workers(%d) time(%d)\n\n\n", cur_mva, prev_mva, duration,workers, time);
                        stable_saturation = 1;
+                       break;
                     }
               }
          }
@@ -110,7 +112,41 @@ int main(int argc, char *argv[]){
      if(handle_int)
         goto clean;
      pause();
+     
   }
+  
+  int i;
+  char mes[1];
+  double dnsmoy =0;
+  double tcpmoy =0;
+  double rpm;
+  struct mesure tab[10];
+  for (i = 0; i < 5; i++)
+  {
+    (tab[i].test_type)=atoi("dns");
+    tab[i].duration=dns("www.uclouvain.be");
+  }
+  
+  for (i = 0; i < 5; i++)
+  {
+    (tab[i].test_type)=atoi("tcp");
+    tab[i].duration=tcp("www.uclouvain.be");
+  }
+  
+  for (i = 0; i < 10; i++)
+  {
+    
+    if( &(tab[i].test_type) == "dns")
+    	dnsmoy+=tab[i].duration;
+    	
+    if( &(tab[i].test_type) == "tcp")
+    	tcpmoy+=tab[i].duration;  
+  }
+  
+  dnsmoy=dnsmoy/5;
+  tcpmoy=tcpmoy/5;
+  rpm =(dnsmoy+tcpmoy)/(double)60000;
+  printf("RPM== %lf;", rpm);
   
 clean:
 
