@@ -59,3 +59,10 @@ https://github.com/gerardbos/h2clientserver
 
 https://github.com/mwesenjak/apns-http2-client/blob/master/main.c
 
+
+HHTP2 COMMANDS TEST
+-------------------
+
+ncat --ssl-alpn h1,h2 monitor.uac.bj 4449
+
+openssl s_client -alpn h2 -connect monitor.uac.bj:4449
