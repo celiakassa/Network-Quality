@@ -60,21 +60,23 @@ int main(int argc, char *argv[]){
      if(handle_alrm){
         get_recv_bytes(t);
         cur_mva = compute_moving_avg();
-        if(cur_mva > 1.05 * prev_mva){
+        long tmp_mva = (long) 1.05 * prev_mva;
+        if(cur_mva > tmp_mva){
            if(saturation && !mva_change){
               mva_change = 1;
               t = addTask(t);
               start_workers(t->pid, t->shmid, t->recv_bytes, argv);
               time = 0; 
               workers+=4;
-              //saturation = 0;
+              saturation = 0;
            }
-           if(saturation && mva_change){
+           /*if(saturation && mva_change){
+              printf("timantB\n");
               t = addTask(t);
               start_workers(t->pid, t->shmid, t->recv_bytes, argv);
               time = 0; 
               workers+=4;
-           }
+           }*/
            if((time >= 4) /*&& !saturation*/){
               t = addTask(t);
               start_workers(t->pid, t->shmid, t->recv_bytes, argv);
@@ -88,7 +90,6 @@ int main(int argc, char *argv[]){
                  time = 0; 
                  workers+=4;
                  saturation = 1;
-                 mva_change = 0;
               }else{
               
                     if(saturation && mva_change){
@@ -104,7 +105,7 @@ int main(int argc, char *argv[]){
                        break;
                     }
               }
-         }
+        }
         prev_mva = cur_mva;
         handle_alrm = 0;
         alarm(1);
@@ -122,6 +123,7 @@ int main(int argc, char *argv[]){
   long rpm;
   struct mesure tab[10];
   
+  printf("Start measurement\n\n");
   for (i = 0; i < 5; i++){
     tab[i].type = DNS;
     tab[i].duration = dns("www.uclouvain.be");
