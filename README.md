@@ -7,7 +7,7 @@ To compile:
 make
 
 To run:
-./client
+./networkqualityC https://monitor.uac.bj:4449 small
 
 ## HTTP commands
 
