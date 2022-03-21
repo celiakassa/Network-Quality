@@ -51,12 +51,19 @@ https://github.com/nghttp2/nghttp2/blob/master/examples/client.c
 
 
 :method: GET
+
 :path: /small
+
 :scheme: https
+
 :authority: monitor.uac.bj
+
 accept: */*
+
 accept-encoding: gzip, deflate
+
 user-agent: nghttp2/1.43.0
+
 
 
 https://github.com/gerardbos/h2clientserver
