@@ -123,7 +123,7 @@ int main(int argc, char *argv[]){
   long rpm;
   struct mesure tab[10];
   
-  printf("Start measurement\n\n");
+  printf("Start measurement %d\n\n", duration);
   for (i = 0; i < 5; i++){
     tab[i].type = DNS;
     tab[i].duration = dns("www.uclouvain.be");

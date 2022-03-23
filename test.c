@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <time.h>
 #include "test.h"
 
@@ -25,8 +26,10 @@ long dns(char url_str[]){
   hints.ai_flags = 0;
   hints.ai_protocol = 0;          
   timespec_get(&ts_dns_start, TIME_UTC);
-  if((s = getaddrinfo(url_str, NULL,&hints, &result)) != 0)
+  if((s = getaddrinfo(url_str, NULL,&hints, &result)) != 0){
+     fprintf(stderr, "An error occured %s\n", strerror(errno));
      return -1L;
+  }
   timespec_get(&ts_dns_end, TIME_UTC);
   return get_duration(ts_dns_end,ts_dns_start);          
 }
