@@ -13,12 +13,12 @@
 #include <openssl/conf.h>
 #include <netinet/tcp.h>
 #include <poll.h>
-#include <sys/types.h>
-#include <signal.h>
-
-#include "shm.h"
-#include "worker.h"
+#include "workerh2.h"
 #include "task.h"
+#include "shm.h"
+#include <signal.h>
+#include <sys/types.h>
+
 #define FAIL    -1
 
 
@@ -29,6 +29,7 @@ void handle_signal(int number){
   if(number == SIGINT)
      handle_int = 1;
 }
+
 enum { IO_NONE, WANT_READ, WANT_WRITE };
 
 #define MAKE_NV(NAME, VALUE)                                                   \
@@ -126,12 +127,16 @@ int OpenConnection(const char *hostname, int port)
 {   int sd;
     struct hostent *host;
     struct sockaddr_in addr;
-
+	
+	printf("host: %s\n",hostname); 
+	printf("port: %d\n",port);
     if ( (host = gethostbyname(hostname)) == NULL )
-    {
+    { 
+        printf("1open\n"); 
         perror(hostname);
         abort();
     }
+    printf("1open\n"); 
     sd = socket(PF_INET, SOCK_STREAM, 0);
     bzero(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -463,61 +468,76 @@ int main(int count, char *argv[]) {
     struct Connection connection;
     int rv, ret;
     int bytes;
-    char *hostname, *portnum;
+    char   portnum[6] = "443";
+    char hostname[256] = "";
+    char      proto[6] = "";
+     char      *tmp_ptr = NULL;
+     char      chemin[10] = "/";
     nghttp2_session_callbacks *callbacks;
     nfds_t npollfds = 1;
     struct pollfd pollfds[1];
-
+   
+    
+     int shmid[2];
+    int *syncdata;
+     int ret2, i;
+    long *recv_bytes;
     if ( count != 4 ){
-        printf("usage: %s <hostname> <portnum> <resource>\n", argv[0]);
+        printf("usage: %s <url> <resource>\n", argv[0]);
         exit(0);
     }
-    hostname = argv[1];
-    portnum = argv[2];
+    char *dest_url = argv[1]; //"https://monitor.uac.bj:4449";
+    char *dest = argv[2];
+     int id = atoi(argv[3]);
+     
+    strncpy(proto,dest_url, (strchr(dest_url, ':')-dest_url));// 
+    strncpy(hostname, strstr(dest_url, "://")+3, sizeof(hostname));//on enlève le https de l'url
     
-    //init request
-    req.host = (char*) malloc(strlen(hostname)*sizeof(char));
-    req.path = (char*) malloc(strlen(argv[3])*sizeof(char));
-    req.hostport = (char*) malloc((strlen(hostname)+strlen(portnum)+1)*sizeof(char));
+    req.hostport = (char*) malloc(strlen(hostname)*sizeof(char));//pas de free après dans le programme, sans conséquence?
+    req.path = (char*) malloc(strlen(argv[2])*sizeof(char));  
+    strncpy(req.path,chemin, strlen(chemin));  
+    req.path = (char*)strcat(req.path, dest);  
+    strncpy(req.hostport, hostname, strlen(hostname));
     
-    strncpy(req.host, hostname, strlen(hostname));
-    strncpy(req.path, argv[3], strlen(argv[3]));
-    req.hostport = strcat(req.host, ":");
-    req.hostport = strcat(req.hostport, portnum);
-    req.port = atoi(portnum);
-    
-    //create shared memory
+    if(strchr(hostname, ':')) { //dissocier l'host name du port      
+      tmp_ptr = strchr(hostname, ':');  
+      strncpy(portnum, tmp_ptr+1,  sizeof(portnum));
+      *tmp_ptr = '\0';
+    }
+ 
+ 
+ 	//create shared memory
   
-  shmid[0] = init(getppid(),PROJ_ID);
-  ret = mem_attach(shmid[0],(void**)&syncdata);
-  if(ret == -1){
-    printf("Failed to configure shared memory %d\n", errno);
-    return SHM_ERR;
-  }
-  *syncdata = *syncdata | 1 << id;
+   shmid[0] = init(getppid(),PROJ_ID);
+   ret2 = mem_attach(shmid[0],(void**)&syncdata);
+   if(ret2 == -1){
+     printf("Failed to configure shared memory %d\n", errno);
+     return SHM_ERR;
+   }
+   *syncdata = *syncdata | 1 << id;
   
-  while(*syncdata!=RDV);
+   while(*syncdata!=RDV);
   
-  shmid[1] = init(getpid(), PROJ_ID);
-  ret = mem_attach(shmid[1],(void**)&recv_bytes);
-  if(ret == -1){
-    printf("Failed to configure shared memory %d\n", errno);
-    return SHM_ERR;
-  }
+   shmid[1] = init(getpid(), PROJ_ID);
+   ret2 = mem_attach(shmid[1],(void**)&recv_bytes);
+   if(ret2 == -1){
+     printf("Failed to configure shared memory %d\n", errno);
+     return SHM_ERR;
+   }
   
-  //configure signal
-  if (signal(SIGINT, handle_signal) == SIG_ERR){
-     printf("Failed to onfigure signal %d \n", SIGINT);
-     return SIGNAL_ERR;
-  }
-    /**TCP connection step**/
+   //configure signal
+   if (signal(SIGINT, handle_signal) == SIG_ERR){
+      printf("Failed to onfigure signal %d \n", SIGINT);
+      return SIGNAL_ERR;
+   }
+     /**TCP connection step**/
     
     fd = OpenConnection(hostname, atoi(portnum));
     
-    if(fd < 0){
+    if(fd < 0){    	 
        fprintf(stderr, "Unable to establish TCP connection\n");
        exit(1);
-    }
+    }   
     /**End TCP connection step**/
     
     /** OpenSSL handshake **/
@@ -525,8 +545,7 @@ int main(int count, char *argv[]) {
     if(ctx == NULL){
         fprintf(stderr, "Unable to initialize OpenSSL context\n");
         exit(1);
-    }
-  
+    } 
     init_ssl_ctx(ctx);
     
     ssl = SSL_new(ctx);      /* create new SSL connection state */
@@ -583,7 +602,6 @@ int main(int count, char *argv[]) {
     }
     
     
-    
     /* Submit the HTTP request to the outbound queue. */
     submit_request(&connection, &req);
     
@@ -593,6 +611,8 @@ int main(int count, char *argv[]) {
       /* Event loop */
     while (nghttp2_session_want_read(connection.session) ||
          nghttp2_session_want_write(connection.session)) {
+         if(handle_int)
+         goto clean;
        fprintf(stderr, "in loop\n");
        int nfds = poll(pollfds, npollfds, -1);
        if (nfds == -1) {
@@ -609,17 +629,18 @@ int main(int count, char *argv[]) {
     
     printf("before cleaning\n\n");
     goto clean;
-
+ 
    
-clean:    
- if(mem_detach((void**)&syncdata)==-1)
-     fprintf(stderr, "Failed to detach sync memory\n");
-  if(mem_detach((void**)&recv_bytes))
-     fprintf(stderr, "Failed to detach recv_bytes memory\n");
-  if (mem_rm(shmid[0]) == -1)
-     fprintf(stderr, "Failed remove shared memory\n");
-  if (mem_rm(shmid[1]) == -1)
-     fprintf(stderr, "Failed remove shared memory\n");
+clean:  
+     if(mem_detach((void**)&syncdata)==-1)
+      fprintf(stderr, "Failed to detach sync memory\n");
+     if(mem_detach((void**)&recv_bytes))
+       fprintf(stderr, "Failed to detach recv_bytes memory\n");
+     if (mem_rm(shmid[0]) == -1)
+       fprintf(stderr, "Failed remove shared memory\n");
+     if (mem_rm(shmid[1]) == -1)
+      fprintf(stderr, "Failed remove shared memory\n");
+     
     nghttp2_session_del(connection.session);
     SSL_shutdown(ssl);
     SSL_free(ssl);        /* release connection state */
