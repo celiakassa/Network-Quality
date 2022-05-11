@@ -24,6 +24,7 @@
 
 int handle_int = 0;
 void handle_signal(int number);
+long *recv_bytes;
 
 void handle_signal(int number){
   if(number == SIGINT)
@@ -399,6 +400,7 @@ static int on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags,
            "%lu bytes\n",
            (unsigned long int)len);
     fwrite(data, 1, len, stdout);
+    *recv_bytes = *recv_bytes + len;
     printf("\n");
   }
   return 0;
@@ -480,8 +482,7 @@ int main(int count, char *argv[]) {
     
      int shmid[2];
     int *syncdata;
-     int ret2, i;
-    long *recv_bytes;
+    int ret2, i;
     if ( count != 4 ){
         printf("usage: %s <url> <resource>\n", argv[0]);
         exit(0);
@@ -520,6 +521,7 @@ int main(int count, char *argv[]) {
   
    shmid[1] = init(getpid(), PROJ_ID);
    ret2 = mem_attach(shmid[1],(void**)&recv_bytes);
+   *recv_bytes = 0;
    if(ret2 == -1){
      printf("Failed to configure shared memory %d\n", errno);
      return SHM_ERR;
