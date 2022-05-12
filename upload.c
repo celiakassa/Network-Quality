@@ -81,7 +81,7 @@ static ssize_t file_read_callback(nghttp2_session *session, int32_t stream_id,ui
   }
   return r;
 }
-static void submit_request(struct Connection *connection, struct Request *req) {
+static void submit_request1(struct Connection *connection, struct Request *req) {
   int32_t stream_id;
   /* Make sure that the last item is NULL */
   const nghttp2_nv nva[] = {MAKE_NV(":method", "POST"),
@@ -587,7 +587,7 @@ int main(int count, char *argv[]) {
     
     
     /* Submit the HTTP request to the outbound queue. */
-    submit_request(&connection, &req);
+    submit_request1(&connection, &req);
     
     pollfds[0].fd = fd;
     ctl_poll(pollfds, &connection);
