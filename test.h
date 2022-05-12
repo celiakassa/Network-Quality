@@ -1,6 +1,8 @@
 enum test_type{
    DNS,
-   TCP
+   TCP,
+   TLS, 
+   DWN
 };
 
 struct mesure{
@@ -11,3 +13,5 @@ struct mesure{
 typedef struct mesure mesure;
 long dns(char url_str[]);
 long tcp(char url_str[]);
+long tls(char url_str[]);
+

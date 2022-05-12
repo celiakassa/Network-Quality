@@ -11,6 +11,7 @@
 #include "worker.h"
 #include "task.h"
 #include "test.h"
+#include "down.h"
 
 int handle_alrm = 0;
 int handle_int = 0;
@@ -118,32 +119,54 @@ int main(int argc, char *argv[]){
   
   int i;
   char mes[1];
+  char *param;
   long dnsmoy = 0L;
   long tcpmoy = 0L;
+  long tlsmoy = 0L;
+  long dwnmoy = 0L;
   long rpm;
-  struct mesure tab[10];
-  
+  struct mesure tab[20];
+  param[1]= *argv[1];
+  param[2]=*argv[2];
   printf("Start measurement %d\n\n", duration);
   for (i = 0; i < 5; i++){
     tab[i].type = DNS;
     tab[i].duration = dns("www.uclouvain.be");
+   // printf("dns");
   }
   
   for (i = i; i < 10; i++){
     tab[i].type = TCP;
     tab[i].duration=tcp("www.uclouvain.be");
+    // printf("tcp");
+  }
+  for (i = i; i < 15; i++){
+    tab[i].type = TLS;
+    tab[i].duration=tls("www.uclouvain.be:https");
+      //printf("tls");
+  }
+  for (i = i; i < 20; i++){
+    tab[i].type = DWN;
+    tab[i].duration=down(&param);
+      printf("down");
   }
   
-  for (i = 0; i < 10; i++){
+  for (i = 0; i < 20; i++){
     if( tab[i].type == DNS )
     	dnsmoy+=tab[i].duration;
     if( tab[i].type == TCP)
     	tcpmoy+=tab[i].duration;  
+    if( tab[i].type == TLS)
+    	tlsmoy+=tab[i].duration;  	
+    if( tab[i].type == DWN)
+    	dwnmoy+=tab[i].duration;  
   }
   
   dnsmoy=dnsmoy/5L;
   tcpmoy=tcpmoy/5L;
-  long total_s =  (dnsmoy+tcpmoy)/1000000000L;
+  tlsmoy=tlsmoy/5L;
+  dwnmoy=dwnmoy/5L;
+  long total_s =  (dnsmoy+tcpmoy+tlsmoy+dwnmoy)/1000000000L;
   rpm = 60L/total_s;
   printf("RPM: %ld", rpm);
   

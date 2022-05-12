@@ -1,6 +1,6 @@
 CFLAGS=-Wall -O2 -Werror -Wall -Wextra -Wpedantic -Wformat=2 -Wformat-overflow=2 -Wformat-truncation=2 -Wformat-security -Wnull-dereference -Wstack-protector -Wtrampolines -Walloca -Wvla -Warray-bounds=2 -Wimplicit-fallthrough=3  -Wshift-overflow=2 -Wcast-qual -Wstringop-overflow=4 -Wconversion -Warith-conversion -Wlogical-op -Wduplicated-cond -Wduplicated-branches -Wformat-signedness -Wshadow -Wstrict-overflow=4 -Wundef -Wstrict-prototypes -Wswitch-default -Wswitch-enum -Wstack-usage=1000000 -Wcast-align=strict -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fstack-clash-protection -fPIE -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -Wl,-z,separate-code
 
-all: rpm.o task.o shm.o test.o worker workerh2 netquality 
+all: rpm.o task.o shm.o test.o down.o worker workerh2 netquality 
 
 
 rpm.o: rpm.c
@@ -17,9 +17,11 @@ tworker.o: tworker.c
 	
 test.o: test.c
 	gcc -c test.c -o test.o
+down.o: down.c
+	gcc -c down.c -o down.o -lnghttp2 -lssl -lcrypto
 	
 netquality: tworker.o shm.o task.o rpm.o
-	gcc -o networkqualityC  shm.o task.o rpm.o test.o main.c -lssl -lcrypto
+	gcc -o networkqualityC  shm.o task.o rpm.o test.o  main.c -lssl -lcrypto
 
 worker: worker.c
 	gcc  -o worker shm.o worker.c -lssl -lcrypto

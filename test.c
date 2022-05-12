@@ -1,6 +1,8 @@
 #include <sys/types.h> 
 #include <sys/socket.h> 
 #include <netdb.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,4 +58,40 @@ long tcp(char url_str[]){
   
   timespec_get(&ts_dns_end, TIME_UTC);
   return get_duration(ts_dns_end,ts_dns_start);
+}
+
+long tls(char url_str[]){
+     struct timespec ts_dns_start, ts_dns_end, ts_dns_result;
+	SSL_library_init();
+	SSL_load_error_strings();
+	ERR_load_BIO_strings();
+	OpenSSL_add_all_algorithms();
+	SSL * ssl;
+	BIO * bio;
+	SSL_CTX * ctx = SSL_CTX_new(SSLv23_client_method());
+	int p;
+	 X509                *cert = NULL; 
+ 	bio = BIO_new_ssl_connect(ctx);
+	BIO_get_ssl(bio, & ssl);
+	SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	 /* Create and setup the connection */
+	BIO_set_conn_hostname(bio, url_str);
+	timespec_get(&ts_dns_start, TIME_UTC);
+	if(BIO_do_connect(bio) <= 0)
+	{
+		return -1L;
+	}
+	else{
+	   cert = SSL_get_peer_certificate(ssl);
+	   if (cert == NULL){
+	    
+	   	return -1L;
+	   }
+	  timespec_get(&ts_dns_end, TIME_UTC);
+	  BIO_free_all(bio);
+	  SSL_CTX_free(ctx);
+	//  printf("sucessfully sucess");
+	 return get_duration(ts_dns_end,ts_dns_start);  
+	
+	}
 }

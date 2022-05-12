@@ -1,6 +1,6 @@
 #define PROJ_ID 256
 
-#define WORKER_TASK "./worker"
+#define WORKER_TASK "./workerh2"
 #define ID_SIZE 2
 #define WORKERS 4
 #define ARGS_NUM 3
