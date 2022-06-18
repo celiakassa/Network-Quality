@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <time.h>
 #include "test.h"
+#include "config.h"
 
 #include <unistd.h>
 #include <malloc.h>
@@ -236,48 +237,9 @@ static void init_ssl_ctx(SSL_CTX *ssl_ctx) {
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 }
 
-SSL_CTX* InitCTX(void) { 
-    int ret;  
-    //SSL_METHOD *method;
-    SSL_CTX *ctx;
-    /*SSL_library_init();
-    OpenSSL_add_all_algorithms(); */ /* Load cryptos, et.al. */
-    ret = OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS |
-           OPENSSL_INIT_ADD_ALL_CIPHERS | OPENSSL_INIT_ADD_ALL_DIGESTS, (OPENSSL_INIT_SETTINGS *)NULL);
-    if(!ret){
-        ERR_print_errors_fp(stderr);
-        return (SSL_CTX*) NULL;
-    }
-    
-    /* SSL_load_error_strings();   Bring in and register error messages */
-   // method = TLSv1_2_client_method();  /* Create new client-method instance */
-    ctx = SSL_CTX_new(TLS_client_method());   /* Create new context */
-    if ( ctx == NULL ){
-        ERR_print_errors_fp(stderr);
-        return (SSL_CTX*) NULL;
-    }
-    return ctx;
-}
+ 
 
-void ShowCerts(SSL* ssl)
-{   X509 *cert;
-    char *line;
-
-    cert = SSL_get_peer_certificate(ssl); /* get the server's certificate */
-    if ( cert != NULL )
-    {
-        printf("Server certificates:\n");
-        line = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-        printf("Subject: %s\n", line);
-        free(line);       /* free the malloc'ed string */
-        line = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-        printf("Issuer: %s\n", line);
-        free(line);       /* free the malloc'ed string */
-        X509_free(cert);     /* free the malloc'ed certificate copy */
-    }
-    else
-        printf("Info: No client certificates configured.\n");
-}
+ 
 
 /*
  * The implementation of nghttp2_send_callback type. Here we write
@@ -441,8 +403,8 @@ static int on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags,
    // printf("[INFO] C <---------------------------- S (DATA chunk)\n"
      //     "%lu bytes\n",
        //    (unsigned long int)len);
-    fwrite(data, 1, len, stdout);
-    printf("\n");
+   // fwrite(data, 1, len, stdout);
+   // printf("\n");
   }
  // else
   //	 return -1L;

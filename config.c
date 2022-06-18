@@ -13,24 +13,11 @@
 #include <openssl/conf.h>
 #include <netinet/tcp.h>
 #include <poll.h>
-#include "workerh2.h"
-#include "task.h"
-#include "shm.h"
-#include <signal.h>
-#include <sys/types.h>
+#include "test.h"
 
 #define FAIL    -1
-
-
-int handle_int = 0;
-void handle_signal(int number);
-long *recv_bytes;
-
-void handle_signal(int number){
-  if(number == SIGINT)
-     handle_int = 1;
-}
-
+#include "config.h"
+char str1[2], str2[15],str3[5], str4[10],str5[2], str6[30],str7[50], str8[30],str9[50], str10[30],str11[50];
 enum { IO_NONE, WANT_READ, WANT_WRITE };
 
 #define MAKE_NV(NAME, VALUE)                                                   \
@@ -46,12 +33,12 @@ enum { IO_NONE, WANT_READ, WANT_WRITE };
   }
 
 static void dief(const char *func, const char *msg) {
- // fprintf(stderr, "FATAL: %s: %s\n", func, msg);
+  fprintf(stderr, "FATAL: %s: %s\n", func, msg);
   exit(EXIT_FAILURE);
 }
 static void diec(const char *func, int error_code) {
-  //fprintf(stderr, "FATAL: %s: error_code=%d, msg=%s\n", func, error_code,
-        //  nghttp2_strerror(error_code));
+  fprintf(stderr, "FATAL: %s: error_code=%d, msg=%s\n", func, error_code,
+          nghttp2_strerror(error_code));
   exit(EXIT_FAILURE);
 }
 
@@ -98,7 +85,7 @@ static void submit_request(struct Connection *connection, struct Request *req) {
   }
 
   req->stream_id = stream_id;
- // printf("[INFO] Stream ID = %d\n", stream_id);
+  //printf("[INFO] Stream ID = %d\n", stream_id);
 }
 
 static void make_non_block(int fd) {
@@ -124,33 +111,6 @@ static void set_tcp_nodelay(int fd) {
   }
 }
 
-int OpenConnection(const char *hostname, int port)
-{   int sd;
-    struct hostent *host;
-    struct sockaddr_in addr;
-	
-	//printf("host: %s\n",hostname); 
-	//printf("port: %d\n",port);
-    if ( (host = gethostbyname(hostname)) == NULL )
-    { 
-     //   printf("1open\n"); 
-        perror(hostname);
-        abort();
-    }
-  //  printf("1open\n"); 
-    sd = socket(PF_INET, SOCK_STREAM, 0);
-    bzero(&addr, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = *(long*)(host->h_addr);
-    if ( connect(sd, (struct sockaddr*)&addr, sizeof(addr)) != 0 )
-    {
-        close(sd);
-        perror(hostname);
-        abort();
-    }
-    return sd;
-}
 
 #ifndef OPENSSL_NO_NEXTPROTONEG
 /*
@@ -308,20 +268,20 @@ static int on_frame_send_callback(nghttp2_session *session,
   case NGHTTP2_HEADERS:
     if (nghttp2_session_get_stream_user_data(session, frame->hd.stream_id)) {
       const nghttp2_nv *nva = frame->headers.nva;
-   //   printf("[INFO] C ----------------------------> S (HEADERS)\n");
+      //printf("[INFO] C ----------------------------> S (HEADERS)\n");
       for (i = 0; i < frame->headers.nvlen; ++i) {
-   //     fwrite(nva[i].name, 1, nva[i].namelen, stdout);
-     //   printf(": ");
-       // fwrite(nva[i].value, 1, nva[i].valuelen, stdout);
-        //printf("\n");
+        //fwrite(nva[i].name, 1, nva[i].namelen, stdout);
+       // printf(": ");
+        //fwrite(nva[i].value, 1, nva[i].valuelen, stdout);
+      //  printf("\n");
       }
     }
     break;
   case NGHTTP2_RST_STREAM:
-    printf("[INFO] C ----------------------------> S (RST_STREAM)\n");
+ //   printf("[INFO] C ----------------------------> S (RST_STREAM)\n");
     break;
   case NGHTTP2_GOAWAY:
-    //printf("[INFO] C ----------------------------> S (GOAWAY)\n");
+ //   printf("[INFO] C ----------------------------> S (GOAWAY)\n");
     break;
   }
   return 0;
@@ -339,21 +299,21 @@ static int on_frame_recv_callback(nghttp2_session *session,
       struct Request *req;
       req = nghttp2_session_get_stream_user_data(session, frame->hd.stream_id);
       if (req) {
-       // printf("[INFO] C <---------------------------- S (HEADERS)\n");
-        for (i = 0; i < frame->headers.nvlen; ++i) {
-         // fwrite(nva[i].name, 1, nva[i].namelen, stdout);
-          //printf(": ");
-          //fwrite(nva[i].value, 1, nva[i].valuelen, stdout);
-          //printf("\n");
-        }
+        //printf("[INFO] C <---------------------------- S (HEADERS)\n");
+      //  for (i = 0; i < frame->headers.nvlen; ++i) {
+       //   fwrite(nva[i].name, 1, nva[i].namelen, stdout);
+        //  printf(": ");
+        //  fwrite(nva[i].value, 1, nva[i].valuelen, stdout);
+         // printf("\n");
+       // }
       }
     }
     break;
   case NGHTTP2_RST_STREAM:
-    printf("[INFO] C <---------------------------- S (RST_STREAM)\n");
+   // printf("[INFO] C <---------------------------- S (RST_STREAM)\n");
     break;
   case NGHTTP2_GOAWAY:
-    printf("[INFO] C <---------------------------- S (GOAWAY)\n");
+ //   printf("[INFO] C <---------------------------- S (GOAWAY)\n");
     break;
   }
   return 0;
@@ -396,12 +356,12 @@ static int on_data_chunk_recv_callback(nghttp2_session *session, uint8_t flags,
 
   req = nghttp2_session_get_stream_user_data(session, stream_id);
   if (req) {
-  //  printf("[INFO] C <---------------------------- S (DATA chunk)\n"
-           //"%lu bytes\n",
-           //(unsigned long int)len);
-   // fwrite(data, 1, len, stdout);
-    *recv_bytes = *recv_bytes + len;
-   // printf("\n");
+   // printf("[INFO] C <---------------------------- S (DATA chunk)\n"
+          // "%lu bytes\n",
+          // (unsigned long int)len);
+  //  fwrite(data, 1, len, stdout);
+  //  printf("\n");
+    sscanf(data, "%s %s  %s %s %s %s %s %s %s %s %s", str1, str2, str3, str4, str5, str6, str7, str8,str9, str10, str11);
   }
   return 0;
 }
@@ -461,7 +421,7 @@ static void exec_io(struct Connection *connection) {
 }
 
 
-int main(int count, char *argv[]) {   
+Configurls configuration(char *argv[]) {   
     SSL_CTX *ctx;
     int fd;
     SSL *ssl;
@@ -478,23 +438,17 @@ int main(int count, char *argv[]) {
     nghttp2_session_callbacks *callbacks;
     nfds_t npollfds = 1;
     struct pollfd pollfds[1];
-   
+    Configurls configs;
+
     
-     int shmid[2];
-    int *syncdata;
-    int ret2, i;
-    if ( count != 4 ){
-        printf("usage: %s <url> <resource>\n", argv[0]);
-        exit(0);
-    }
     char *dest_url = argv[1]; //"https://monitor.uac.bj:4449";
     char *dest = argv[2];
-     int id = atoi(argv[3]);
-     
+    
     strncpy(proto,dest_url, (strchr(dest_url, ':')-dest_url));// 
-    strncpy(hostname, strstr(dest_url, "://")+3, sizeof(hostname));//on enlève le https de l'url   
-    req.hostport = (char*)malloc(strlen(hostname)*sizeof(char));//pas de free après dans le programme, sans conséquence?
-    req.path = (char*)malloc(strlen(argv[2])*sizeof(char));  
+    strncpy(hostname, strstr(dest_url, "://")+3, sizeof(hostname));//on enlève le https de l'url
+    
+    req.hostport = (char*) malloc(strlen(hostname)*sizeof(char));//pas de free après dans le programme, sans conséquence?
+    req.path = (char*) malloc(strlen(argv[2])*sizeof(char));  
     strncpy(req.path,chemin, strlen(chemin));  
     req.path = (char*)strcat(req.path, dest);  
     strncpy(req.hostport, hostname, strlen(hostname));
@@ -504,33 +458,8 @@ int main(int count, char *argv[]) {
       strncpy(portnum, tmp_ptr+1,  sizeof(portnum));
       *tmp_ptr = '\0';
     }
-
- 	//create shared memory
-  
-   shmid[0] = init(getppid(),PROJ_ID);
-   ret2 = mem_attach(shmid[0],(void**)&syncdata);
-   if(ret2 == -1){
-     printf("Failed to configure shared memory %d\n", errno);
-     return SHM_ERR;
-   }
-   *syncdata = *syncdata | 1 << id;
-  
-   while(*syncdata!=RDV);
-  
-   shmid[1] = init(getpid(), PROJ_ID);
-   ret2 = mem_attach(shmid[1],(void**)&recv_bytes);
-   *recv_bytes = 0;
-   if(ret2 == -1){
-     printf("Failed to configure shared memory %d\n", errno);
-     return SHM_ERR;
-   }
-  
-   //configure signal
-   //if (signal(SIGINT, handle_signal) == SIG_ERR){
-     // printf("Failed to onfigure signal %d \n", SIGINT);
-      //return SIGNAL_ERR;
-   //}
-     /**TCP connection step**/
+ 
+    /**TCP connection step**/
     
     fd = OpenConnection(hostname, atoi(portnum));
     
@@ -611,44 +540,110 @@ int main(int count, char *argv[]) {
       /* Event loop */
     while (nghttp2_session_want_read(connection.session) ||
          nghttp2_session_want_write(connection.session)) {
-       //if(handle_int)
-         //  goto clean;
-       //fprintf(stderr, "in loop\n");
+      // fprintf(stderr, "in loop\n");
        int nfds = poll(pollfds, npollfds, -1);
        if (nfds == -1) {
           fprintf(stderr, "poll: %s", strerror(errno));
-        
        }
        if (pollfds[0].revents & (POLLIN | POLLOUT)) {
          exec_io(&connection);
-          
        }
        if ((pollfds[0].revents & POLLHUP) || (pollfds[0].revents & POLLERR)) {
           fprintf(stderr, "Connection error");
-          
-        }
+       }
        ctl_poll(pollfds, &connection);
-     }
+    }
     
-    //printf("before cleaning\n\n");
+   // printf("before cleaning\n\n");
+   	int i, len7, len9,len11, j;
+   	char *ch1= "\"";
+   	char *ch2= ",";
+   	len7 = strlen(str7);
+   	len9 = strlen(str9);
+   	len11 = strlen(str11);
+	   	
+  	for(i = 0; i < len7; i++)
+	{
+		if(str7[i] == *ch1)
+		{
+			for(j = i; j < len7; j++)
+			{
+				str7[j] = str7[j + 1];
+			}
+			len7--;
+			i--;	
+		} 
+		if(str7[i] == *ch2)
+		{
+			for(j = i; j < len7; j++)
+			{
+				str7[j] = str7[j + 1];
+			}
+			len7--;
+			i--;	
+		} 
+	}
+	for(i = 0; i < len9; i++)
+	{
+		if(str9[i] == *ch1)
+		{
+			for(j = i; j < len9; j++)
+			{
+				str9[j] = str9[j + 1];
+			}
+			len9--;
+			i--;	
+		} 
+		if(str9[i] == *ch2)
+		{
+			for(j = i; j < len9; j++)
+			{
+				str9[j] = str9[j + 1];
+			}
+			len9--;
+			i--;	
+		} 
+	}
+	for(i = 0; i < len11; i++)
+	{
+		if(str11[i] == *ch1)
+		{
+			for(j = i; j < len11; j++)
+			{
+				str11[j] = str11[j + 1];
+			}
+			len11--;
+			i--;	
+		} 
+		if(str11[i] == *ch2)
+		{
+			for(j = i; j < len11; j++)
+			{
+				str11[j] = str11[j + 1];
+			}
+			len11--;
+			i--;	
+		} 
+	}	
+    configs.SmallUrl = (char*) malloc(strlen(str7)*sizeof(char));  
+    configs.LargeUrl = (char*) malloc(strlen(str9)*sizeof(char));  
+    configs.UploadUrl = (char*) malloc(strlen(str11)*sizeof(char));  
+     strncpy(configs.SmallUrl,str7, strlen(str7)); 
+     strncpy(configs.LargeUrl,str9, strlen(str9)); 
+     strncpy(configs.UploadUrl,str11, strlen(str11)); 
+   //   printf("SmallUrl :%s\n",configs.SmallUrl);
+    //  printf("LargeUrl :%s\n",configs.LargeUrl);
+     // printf("UploadUrl: %s\n",configs.UploadUrl);
+    
     goto clean;
- 
+
    
-clean:  
-     if(mem_detach((void**)&syncdata)==-1)
-      fprintf(stderr, "Failed to detach sync memory\n");
-     if(mem_detach((void**)&recv_bytes))
-       fprintf(stderr, "Failed to detach recv_bytes memory\n");
-     if (mem_rm(shmid[0]) == -1)
-       fprintf(stderr, "Failed remove shared memory\n");
-     if (mem_rm(shmid[1]) == -1)
-      fprintf(stderr, "Failed remove shared memory\n");
-           
+clean:    
     nghttp2_session_del(connection.session);
     SSL_shutdown(ssl);
     SSL_free(ssl);        /* release connection state */
     SSL_CTX_free(ctx);        /* release context */
     close(fd);         /* close socket */
-    return 0;
+    return configs;
 }
 
