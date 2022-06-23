@@ -2,6 +2,7 @@ struct saturation {
  	long rate;
 	int flows ;  
 	int error;
+	int oksaturation;
 
 };
 
