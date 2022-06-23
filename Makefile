@@ -39,6 +39,9 @@ workup: workup.c
 	
 test: netquality
 	#valgrind --leak-check=full --track-origins=yes  --show-leak-kinds=all -s ./networkqualityC https://monitor.uac.bj:4449 large
+	#gcc -o upload upload -lnghttp2 -lssl -lcrypto
+	#./upload https://monitor.uac.bj:4449 slurp
+
 	./networkqualityC https://monitor.uac.bj:4449 config
 	
 clean:
