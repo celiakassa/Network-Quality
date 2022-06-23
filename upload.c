@@ -15,6 +15,10 @@
 #include <poll.h>
 #define FAIL    -1
 
+#define BUFF_SIZE 413200
+char infini_buffer[BUFF_SIZE];
+int infini_buffer_offset = 0;
+
 enum { IO_NONE, WANT_READ, WANT_WRITE };
 
 #define MAKE_NV(NAME, VALUE)                                                   \
@@ -71,8 +75,16 @@ static ssize_t file_read_callback(nghttp2_session *session, int32_t stream_id,ui
   (void)stream_id;
   (void)user_data;
 
-  while ((r = read(fd, buf, length)) == -1 && errno == EINTR)
-    ;
+  /*while ((r = read(fd, buf, length)) == -1 && errno == EINTR)
+    ;*/
+  
+  if(infini_buffer_offset+length > BUFF_SIZE)
+     infini_buffer_offset = 0;
+  memcpy(buf, infini_buffer+infini_buffer_offset, length);
+  infini_buffer_offset+=length;
+  
+  r = length;
+  
   if (r == -1) {
     return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
   }
@@ -491,7 +503,7 @@ int main(int count, char *argv[]) {
     nghttp2_session_callbacks *callbacks;
     nfds_t npollfds = 1;
     struct pollfd pollfds[1];
-
+    memset(infini_buffer, 'x', BUFF_SIZE); // initialize infini buffer
     if ( count != 3 ){
         printf("usage: %s <url> <resource>\n", argv[0]);
         exit(0);
